@@ -8,7 +8,6 @@ using namespace cv;
 
 int main()
 {
-  Mat frame;
   // auto source = "rtsp://localhost:8554/bunny";
   auto source = 1;
   auto cap = VideoCapture(source);
@@ -17,6 +16,7 @@ int main()
     return 1;
   }
 
+  auto frame = Mat();
   while (cap.read(frame)) {
     imshow("Live", frame);
     if (waitKey(5) >= 0)
