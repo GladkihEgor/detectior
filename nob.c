@@ -13,7 +13,7 @@ int main(int argc, char **argv)
   cmd_append(&cmd, "-o", "main");
   cmd_append(&cmd, "main.cpp");
   cmd_append(&cmd, "-L/opt/homebrew/Cellar/opencv/4.11.0_1/lib/");
-  cmd_append(&cmd, "-lopencv_core", "-lopencv_videoio", "-lopencv_highgui");
+  cmd_append(&cmd, "-lopencv_core", "-lopencv_videoio", "-lopencv_highgui", "-lopencv_imgproc");
   if (!cmd_run_sync_and_reset(&cmd)) return 1;
   return 0;
 }

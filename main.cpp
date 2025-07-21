@@ -2,12 +2,31 @@
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 using namespace std;
 using namespace cv;
 
+Mat resize_with_padding(Mat src, Size target_size)
+{
+  if (src.empty()) throw invalid_argument("Got empty image for resize with padding");
+  if (target_size.width == 0 || target_size.height == 0) throw invalid_argument("Size for resize can't be 0");
+  if (src.size() == target_size) return src;
+  
+  auto ratio_size = target_size.height > target_size.width
+    ? Size(target_size.width, min(target_size.height, target_size.width * src.rows / src.cols))
+    : Size(min(target_size.width, target_size.height * src.cols / src.rows), target_size.height);
+
+  Mat dst = Mat::zeros(target_size, src.type());
+  auto roi = dst(Rect(0, 0, ratio_size.width, ratio_size.height));
+  resize(src, roi, ratio_size);
+  return dst;
+}
+
 int main()
 {
+  // auto source = "./chel.jpg";
+  // auto source = "./big_buck_bunny_480p_h264.mov";
   // auto source = "rtsp://localhost:8554/bunny";
   auto source = 1;
   auto cap = VideoCapture(source);
@@ -18,7 +37,8 @@ int main()
 
   auto frame = Mat();
   while (cap.read(frame)) {
-    imshow("Live", frame);
+    auto new_frame = resize_with_padding(frame, Size(640, 480));
+    imshow("Live", new_frame);
     if (waitKey(5) >= 0)
         break;
   }
