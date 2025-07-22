@@ -7,11 +7,12 @@
 using namespace std;
 using namespace cv;
 
+// TODO: din't work if target_size < src.size()
 Mat resize_with_padding(Mat src, Size target_size)
 {
   if (src.empty()) throw invalid_argument("Got empty image for resize with padding");
   if (target_size.width == 0 || target_size.height == 0) throw invalid_argument("Size for resize can't be 0");
-  if (src.size() == target_size) return src;
+  if (src.size() == target_size) return src; // TODO: this change src image
   
   auto ratio_size = target_size.height > target_size.width
     ? Size(target_size.width, min(target_size.height, target_size.width * src.rows / src.cols))
