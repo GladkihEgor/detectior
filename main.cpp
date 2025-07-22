@@ -1,5 +1,6 @@
 #include <iostream>
 #include <opencv2/core.hpp>
+#include <opencv2/dnn.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -36,9 +37,15 @@ int main()
     return 1;
   }
 
+  auto model = dnn::readNetFromONNX("best.onnx");
+
   auto frame = Mat();
   while (cap.read(frame)) {
-    auto new_frame = resize_with_padding(frame, Size(640, 480));
+    auto new_frame = resize_with_padding(frame, Size(640, 640));
+    auto blob = dnn::blobFromImage(new_frame, 1.0 / 255.0, Size(), Scalar(), false, false, CV_32F);
+    model.setInput(blob);
+    auto model_out = model.forward();
+    cout << model_out.total() << endl;
     imshow("Live", new_frame);
     if (waitKey(5) >= 0)
         break;
