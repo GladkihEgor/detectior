@@ -8,22 +8,6 @@
 using namespace std;
 using namespace cv;
 
-Mat resize_with_padding(Mat src, Size target_size)
-{
-  if (src.empty()) throw invalid_argument("Got empty image for resize with padding");
-  if (target_size.width == 0 || target_size.height == 0) throw invalid_argument("Size for resize can't be 0");
-  if (src.size() == target_size) return src; // TODO: this change src image
-  
-  auto ratio_size = src.rows / src.cols < target_size.height / target_size.width
-    ? Size(target_size.width, min(target_size.height, target_size.width * src.rows / src.cols))
-    : Size(min(target_size.width, target_size.height * src.cols / src.rows), target_size.height);
-
-  Mat dst = Mat::zeros(target_size, src.type());
-  auto roi = dst(Rect(0, 0, ratio_size.width, ratio_size.height));
-  resize(src, roi, ratio_size);
-  return dst;
-}
-
 vector<Rect> process_output(Mat output, float score_treshold = 0.6, float nms_treshold = 0.5)
 {
   float *data = (float*) output.data;
@@ -66,17 +50,19 @@ int main()
 
   auto frame = Mat();
   while (cap.read(frame)) {
-    auto new_frame = resize_with_padding(frame, Size(640, 640));
-    auto blob = dnn::blobFromImage(new_frame, 1.0 / 255.0, Size(), Scalar(), false, false, CV_32F);
+    auto blob_params = dnn::Image2BlobParams(1.0 / 255.0, Size(640, 640), Scalar(), false, CV_32F, dnn::DNN_LAYOUT_NCHW, dnn::DNN_PMODE_LETTERBOX, 0.0);
+    auto blob = dnn::blobFromImageWithParams(frame, blob_params);
     model.setInput(blob);
     auto model_out = model.forward();
     const int new_shape[] = {model_out.size[1], model_out.size[2]};
     model_out = model_out.reshape(0, 2, new_shape).t();
     auto bboxes = process_output(model_out);
-    for (auto bbox : bboxes)
-      rectangle(new_frame, bbox.tl(), bbox.br(), Scalar(0, 0, 255));
+    for (auto bbox : bboxes) {
+      auto rect = blob_params.blobRectToImageRect(bbox, frame.size());
+      rectangle(frame, rect.tl(), rect.br(), Scalar(0, 0, 255), 3);
+    }
 
-    imshow("Live", new_frame);
+    imshow("Live", frame);
     if (waitKey(5) >= 0)
         break;
   }
