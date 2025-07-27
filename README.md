@@ -3,6 +3,11 @@
 Программное обеспечение для распознавания людей в кадре и отправки дальнейших событий.
 
 
+## Dependencies
+
+* [OpenCV](https://opencv.org)
+
+
 ## Quick start
 
 ```console
