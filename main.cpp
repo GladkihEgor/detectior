@@ -8,6 +8,8 @@
 using namespace std;
 using namespace cv;
 
+#define shift_args(argc, argv) ((argc)--, *(argv)++)
+
 vector<Rect> process_output(Mat output, float score_treshold = 0.6, float nms_treshold = 0.5)
 {
   float *data = (float*) output.data;
@@ -34,20 +36,35 @@ vector<Rect> process_output(Mat output, float score_treshold = 0.6, float nms_tr
   return bboxes;
 }
 
-int main()
+int main(int argc, const char **argv)
 {
-  // auto source = "./chel.jpg";
-  // auto source = "./big_buck_bunny_480p_h264.mov";
-  // auto source = "rtsp://localhost:8554/bunny";
-  auto source = 1;
-  auto cap = VideoCapture(source);
-  if (!cap.isOpened()) {
-    cerr << "ERROR: can't open video capture for " << source << endl;
+  shift_args(argc, argv); // program name
+  if (argc == 0) {
+    cerr << "ERROR: please specify device, URL or file for frame processing" << endl;
     return 1;
   }
+  auto arg = shift_args(argc, argv);
+  auto device_id = atoi(arg);
+  VideoCapture cap;
+  if (device_id > 0 || strcmp(arg, "0") == 0) {
+    auto source = device_id;
+    cap = VideoCapture(source);
+    if (!cap.isOpened()) {
+      cerr << "ERROR: can't open video capture for " << source << endl;
+      return 1;
+    }
+  } else {
+    auto source = arg;
+    cap = VideoCapture(source);
+    if (!cap.isOpened()) {
+      cerr << "ERROR: can't open video capture for " << source << endl;
+      return 1;
+    }
+  }
 
+  auto frames_count = cap.get(CAP_PROP_FRAME_COUNT);
+  auto delay_frames = frames_count == 1 ? -1 : 5;
   auto model = dnn::readNetFromONNX("best.onnx");
-
   auto frame = Mat();
   while (cap.read(frame)) {
     auto blob_params = dnn::Image2BlobParams(1.0 / 255.0, Size(640, 640), Scalar(), false, CV_32F, dnn::DNN_LAYOUT_NCHW, dnn::DNN_PMODE_LETTERBOX, 0.0);
@@ -63,7 +80,7 @@ int main()
     }
 
     imshow("Live", frame);
-    if (waitKey(5) >= 0)
+    if (waitKey(delay_frames) >= 0)
         break;
   }
 
