@@ -8,7 +8,7 @@ bool compile_macos(Cmd cmd, bool is_static)
   NOB_ASSERT(!is_static && "MacOS doesn't support static linking");
   char *opencv_path = "/opt/homebrew/Cellar/opencv/4.12.0";
   cmd_append(&cmd, "clang++");
-  cmd_append(&cmd, "-Wall", "-Wextra");
+  cmd_append(&cmd, "-Wall", "-Wextra", "-std=c++23");
   cmd_append(&cmd, temp_sprintf("-I%s/include/opencv4/", opencv_path));
   cmd_append(&cmd, "-o", "main");
   cmd_append(&cmd, "main.cpp");

@@ -1,3 +1,5 @@
+#include <ctime>
+#include <print>
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
@@ -9,6 +11,12 @@ using namespace std;
 using namespace cv;
 
 #define shift_args(argc, argv) ((argc)--, *(argv)++)
+
+struct Human {
+  size_t id;
+  Rect box;
+  time_t appearance;
+};
 
 vector<Rect> process_output(Mat output, float score_treshold = 0.6, float nms_treshold = 0.5)
 {
@@ -65,6 +73,9 @@ int main(int argc, const char **argv)
   auto frames_count = cap.get(CAP_PROP_FRAME_COUNT);
   auto delay_frames = frames_count == 1 ? -1 : 5;
   auto model = dnn::readNetFromONNX("best.onnx");
+  size_t id = 0;
+  // TODO: fix infinite increment on remove // memory leak
+  auto humans = vector<Human>();
   auto frame = Mat();
   while (cap.read(frame)) {
     auto blob_params = dnn::Image2BlobParams(1.0 / 255.0, Size(640, 640), Scalar(), false, CV_32F, dnn::DNN_LAYOUT_NCHW, dnn::DNN_PMODE_LETTERBOX, 0.0);
@@ -74,15 +85,41 @@ int main(int argc, const char **argv)
     const int new_shape[] = {model_out.size[1], model_out.size[2]};
     model_out = model_out.reshape(0, 2, new_shape).t();
     auto bboxes = process_output(model_out);
+    auto cur_time = time(NULL);
     for (auto bbox : bboxes) {
       auto rect = blob_params.blobRectToImageRect(bbox, frame.size());
-      rectangle(frame, rect.tl(), rect.br(), Scalar(0, 0, 255), 3);
+      float max_iou = 0.0;
+      Human *cur_human;
+      for (auto &human : humans) {
+        auto iou = float((rect & human.box).area()) / float((rect | human.box).area());
+        if (iou >= max_iou) {
+          max_iou = iou;
+          cur_human = &human;
+        }
+      }
+
+      if (max_iou >= 0.5) {
+        cur_human->box = rect;
+        cur_human->appearance = cur_time;
+      }
+      else humans.push_back((Human) {id++, rect, time(NULL)});
+    }
+
+    for (auto it = humans.begin(); it < humans.end(); it += 1) {
+      if (difftime(cur_time, it->appearance) > 5) {
+        humans.erase(it);
+        continue;
+      }
+
+      rectangle(frame, it->box.tl(), it->box.br(), Scalar(0, 0, 255), 3); 
+      putText(frame, to_string(it->id), it->box.tl(), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
     }
 
     imshow("Live", frame);
-    if (waitKey(delay_frames) >= 0)
+    if (waitKey(delay_frames) == 81)
         break;
   }
 
+  println("{}", humans.size());
   return 0;
 }
