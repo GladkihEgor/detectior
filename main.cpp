@@ -12,6 +12,8 @@ using namespace cv;
 
 #define shift_args(argc, argv) ((argc)--, *(argv)++)
 
+bool DEBUG = false;
+
 struct Human {
   size_t id;
   Rect box;
@@ -47,22 +49,27 @@ vector<Rect> process_output(Mat output, float score_treshold = 0.6, float nms_tr
 int main(int argc, const char **argv)
 {
   shift_args(argc, argv); // program name
-  if (argc == 0) {
+  const char *source = "";
+  while (argc > 0) {
+    auto arg = shift_args(argc, argv);
+    if (strcmp(arg, "-D") == 0) DEBUG = true;
+    else source = arg;
+  }
+
+  if (strcmp(source, "") == 0) {
     cerr << "ERROR: please specify device, URL or file for frame processing" << endl;
     return 1;
   }
-  auto arg = shift_args(argc, argv);
-  auto device_id = atoi(arg);
+
   VideoCapture cap;
-  if (device_id > 0 || strcmp(arg, "0") == 0) {
-    auto source = device_id;
-    cap = VideoCapture(source);
+  auto device_id = atoi(source);
+  if (device_id > 0 || strcmp(source, "0") == 0) {
+    cap = VideoCapture(device_id);
     if (!cap.isOpened()) {
       cerr << "ERROR: can't open video capture for " << source << endl;
       return 1;
     }
   } else {
-    auto source = arg;
     cap = VideoCapture(source);
     if (!cap.isOpened()) {
       cerr << "ERROR: can't open video capture for " << source << endl;
@@ -111,15 +118,22 @@ int main(int argc, const char **argv)
         continue;
       }
 
-      rectangle(frame, it->box.tl(), it->box.br(), Scalar(0, 0, 255), 3); 
-      putText(frame, to_string(it->id), it->box.tl(), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+      if (DEBUG) {
+        rectangle(frame, it->box.tl(), it->box.br(), Scalar(0, 0, 255), 3); 
+        putText(frame, to_string(it->id), it->box.tl(), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
+      }
     }
 
-    imshow("Live", frame);
-    if (waitKey(delay_frames) == 81)
-        break;
+    // TODO: infinite loop without DEBUG
+    if (DEBUG) {
+      imshow("Live", frame);
+      if (waitKey(delay_frames) == 81)
+          break;
+    }
   }
 
-  println("{}", humans.size());
+  if (DEBUG) {
+    println("{}", humans.size());
+  }
   return 0;
 }
