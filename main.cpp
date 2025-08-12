@@ -78,12 +78,15 @@ int main(int argc, const char **argv)
   }
 
   auto frames_count = cap.get(CAP_PROP_FRAME_COUNT);
+  if (frames_count == 0) frames_count = 25;
   auto delay_frames = frames_count == 1 ? -1 : 5;
   auto model = dnn::readNetFromONNX("best.onnx");
   size_t id = 0;
   // TODO: fix infinite increment on remove // memory leak
   auto humans = vector<Human>();
   auto frame = Mat();
+  auto writer = VideoWriter();
+  time_t writer_start;
   while (cap.read(frame)) {
     auto blob_params = dnn::Image2BlobParams(1.0 / 255.0, Size(640, 640), Scalar(), false, CV_32F, dnn::DNN_LAYOUT_NCHW, dnn::DNN_PMODE_LETTERBOX, 0.0);
     auto blob = dnn::blobFromImageWithParams(frame, blob_params);
@@ -124,6 +127,23 @@ int main(int argc, const char **argv)
       }
     }
 
+    if (!writer.isOpened() && humans.size() > 0) {
+      writer_start = time(NULL);
+      writer.open(
+        std::format("{}.avi", cur_time),
+        VideoWriter::fourcc('M','J','P','G'),
+        frames_count,
+        frame.size()
+      );
+    }
+
+    writer.write(frame);
+
+    if (
+      writer.isOpened() &&
+      (humans.size() == 0 || difftime(cur_time, writer_start) >= 60)
+    ) writer.release();
+
     // TODO: infinite loop without DEBUG
     if (DEBUG) {
       imshow("Live", frame);
@@ -132,8 +152,11 @@ int main(int argc, const char **argv)
     }
   }
 
+  if (writer.isOpened()) writer.release();
+
   if (DEBUG) {
     println("{}", humans.size());
   }
+
   return 0;
 }
