@@ -82,7 +82,6 @@ int main(int argc, const char **argv)
   auto delay_frames = frames_count == 1 ? -1 : 5;
   auto model = dnn::readNetFromONNX("best.onnx");
   size_t id = 0;
-  // TODO: fix infinite increment on remove // memory leak
   auto humans = vector<Human>();
   auto frame = Mat();
   auto writer = VideoWriter();
@@ -118,6 +117,7 @@ int main(int argc, const char **argv)
     for (auto it = humans.begin(); it < humans.end(); it += 1) {
       if (difftime(cur_time, it->appearance) > 5) {
         humans.erase(it);
+        it -= 1;
         continue;
       }
 
