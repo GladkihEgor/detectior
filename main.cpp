@@ -79,20 +79,21 @@ int main(int argc, const char **argv)
 
   auto frames_count = cap.get(CAP_PROP_FRAME_COUNT);
   if (frames_count == 0) frames_count = 25;
-  auto delay_frames = frames_count == 1 ? -1 : 5;
+  const auto delay_frames = frames_count == 1 ? -1 : 5;
   auto model = dnn::readNetFromONNX("best.onnx");
+  const auto blob_params = dnn::Image2BlobParams(1.0 / 255.0, Size(640, 640), Scalar(), false, CV_32F, dnn::DNN_LAYOUT_NCHW, dnn::DNN_PMODE_LETTERBOX, 0.0);
   size_t id = 0;
   auto humans = vector<Human>();
   auto frame = Mat();
   auto writer = VideoWriter();
   time_t writer_start;
   while (cap.read(frame)) {
-    auto blob_params = dnn::Image2BlobParams(1.0 / 255.0, Size(640, 640), Scalar(), false, CV_32F, dnn::DNN_LAYOUT_NCHW, dnn::DNN_PMODE_LETTERBOX, 0.0);
     auto blob = dnn::blobFromImageWithParams(frame, blob_params);
     model.setInput(blob);
     auto model_out = model.forward();
     const int new_shape[] = {model_out.size[1], model_out.size[2]};
     model_out = model_out.reshape(0, 2, new_shape).t();
+
     auto bboxes = process_output(model_out);
     auto cur_time = time(NULL);
     for (auto bbox : bboxes) {
@@ -121,10 +122,8 @@ int main(int argc, const char **argv)
         continue;
       }
 
-      if (DEBUG) {
-        rectangle(frame, it->box.tl(), it->box.br(), Scalar(0, 0, 255), 3); 
-        putText(frame, to_string(it->id), it->box.tl(), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
-      }
+      rectangle(frame, it->box.tl(), it->box.br(), Scalar(0, 0, 255), 3); 
+      putText(frame, to_string(it->id), it->box.tl(), FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0, 0, 0));
     }
 
     if (!writer.isOpened() && humans.size() > 0) {
@@ -138,9 +137,7 @@ int main(int argc, const char **argv)
     }
 
     writer.write(frame);
-
-    if (
-      writer.isOpened() &&
+    if (writer.isOpened() &&
       (humans.size() == 0 || difftime(cur_time, writer_start) >= 60)
     ) writer.release();
 
@@ -152,11 +149,7 @@ int main(int argc, const char **argv)
     }
   }
 
+  if (cap.isOpened()) cap.release();
   if (writer.isOpened()) writer.release();
-
-  if (DEBUG) {
-    println("{}", humans.size());
-  }
-
   return 0;
 }
